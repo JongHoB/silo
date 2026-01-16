@@ -52,6 +52,15 @@ class ZipfianRandom {
     urnd_.set_current_seed(urnd_seed);
   }
 
+  void init_with_precomputed(uint64_t items, double theta, double zetan, double eta, uint64_t urnd_seed) {
+	  max_ = items - 1;
+	  theta_ = theta;
+	  zetan_ = zetan;
+	  alpha_ = 1.0 / (1.0 - theta_);
+	  eta_ = eta;
+	  urnd_. set_current_seed(urnd_seed);
+  }
+
   ZipfianRandom(uint64_t items, double theta, uint64_t urnd_seed) {
     init(items, theta, urnd_seed);
   }

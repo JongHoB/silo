@@ -24,6 +24,11 @@
 using namespace std;
 using namespace util;
 
+static double g_zetan = 0.0;
+static double g_eta = 0.0;
+static bool g_zipfian_initialized = false;
+static double g_zipfian_theta = 0.5;
+
 static size_t nkeys;
 static const size_t YCSBRecordSize = 100;
 
@@ -48,7 +53,7 @@ public:
     obj_v.reserve(str_arena::MinStrReserveLength);
 
     if (use_zipfian) {
-	    zipfian_rng.init(nkeys, 0.5, 0 + worker_id);
+	    zipfian_rng.init_with_precomputed(nkeys, g_zipfian_theta, g_zetan, g_eta, worker_id);
     }
   }
 
@@ -481,6 +486,23 @@ ycsb_do_test(abstract_db *db, int argc, char **argv)
 {
   nkeys = size_t(scale_factor * 1000.0);
   ALWAYS_ASSERT(nkeys > 0);
+
+  if (use_zipfian && !g_zipfian_initialized) {
+	  if (verbose)
+		  cerr << "[INFO] Pre-computing zipfian zeta for " << nkeys << " keys..." << endl;
+	  double sum = 0;
+	  for (uint64_t i = 0; i < nkeys; i++) {
+		  sum += 1.0 / std::pow(i + 1, g_zipfian_theta);
+	  }
+	  g_zetan = sum;
+
+	  double zeta2 = 1.0 + std::pow(0.5, g_zipfian_theta);
+	  g_eta = (1.0 - std::pow(2.0 / nkeys, 1.0 - g_zipfian_theta)) / (1.0 - zeta2 / g_zetan);
+
+	  g_zipfian_initialized = true;
+	  if (verbose)
+		  cerr << "[INFO] Zipfian pre-computation done." << endl;
+  }
 
   // parse options
   optind = 1;
