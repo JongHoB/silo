@@ -29,6 +29,8 @@ extern "C" int mallctl(const char *name, void *oldp, size_t *oldlenp, void *newp
 using namespace std;
 using namespace util;
 
+int use_zipfian = 0;
+
 size_t nthreads = 1;
 volatile bool running = true;
 int verbose = 0;

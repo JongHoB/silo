@@ -17,6 +17,8 @@
 #include "../spinbarrier.h"
 #include "../core.h"
 
+#include "../third-party/foedus/zipfian_random.hpp"
+
 #include "bench.h"
 
 using namespace std;
@@ -44,6 +46,18 @@ public:
     obj_key0.reserve(str_arena::MinStrReserveLength);
     obj_key1.reserve(str_arena::MinStrReserveLength);
     obj_v.reserve(str_arena::MinStrReserveLength);
+
+    if (use_zipfian) {
+	    zipfian_rng.init(nkeys, 0.5, 0 + worker_id);
+    }
+  }
+
+  inline uint64_t get_next_key() {
+	  if (use_zipfian) {
+		  return zipfian_rng.next();
+	  } else {
+		  return r.next() % nkeys;
+	  }
   }
 
   txn_result
@@ -52,7 +66,7 @@ public:
     void * const txn = db->new_txn(txn_flags, arena, txn_buf(), abstract_db::HINT_KV_GET_PUT);
     scoped_str_arena s_arena(arena);
     try {
-      const uint64_t k = r.next() % nkeys;
+      const uint64_t k = get_next_key();
       ALWAYS_ASSERT(tbl->get(txn, u64_varkey(k).str(obj_key0), obj_v));
       computation_n += obj_v.size();
       measure_txn_counters(txn, "txn_read");
@@ -76,7 +90,8 @@ public:
     void * const txn = db->new_txn(txn_flags, arena, txn_buf(), abstract_db::HINT_KV_GET_PUT);
     scoped_str_arena s_arena(arena);
     try {
-      tbl->put(txn, u64_varkey(r.next() % nkeys).str(str()), str().assign(YCSBRecordSize, 'b'));
+      const uint64_t k = get_next_key();
+      tbl->put(txn, u64_varkey(k).str(str()), str().assign(YCSBRecordSize, 'b'));
       measure_txn_counters(txn, "txn_write");
       if (likely(db->commit_txn(txn)))
         return txn_result(true, 0);
@@ -98,7 +113,7 @@ public:
     void * const txn = db->new_txn(txn_flags, arena, txn_buf(), abstract_db::HINT_KV_RMW);
     scoped_str_arena s_arena(arena);
     try {
-      const uint64_t key = r.next() % nkeys;
+      const uint64_t key = get_next_key();
       ALWAYS_ASSERT(tbl->get(txn, u64_varkey(key).str(obj_key0), obj_v));
       computation_n += obj_v.size();
       tbl->put(txn, obj_key0, str().assign(YCSBRecordSize, 'c'));
@@ -134,7 +149,7 @@ public:
   {
     void * const txn = db->new_txn(txn_flags, arena, txn_buf(), abstract_db::HINT_KV_SCAN);
     scoped_str_arena s_arena(arena);
-    const size_t kstart = r.next() % nkeys;
+    const size_t kstart = get_next_key();
     const string &kbegin = u64_varkey(kstart).str(obj_key0);
     const string &kend = u64_varkey(kstart + 100).str(obj_key1);
     worker_scan_callback c;
@@ -213,6 +228,8 @@ private:
   string obj_key0;
   string obj_key1;
   string obj_v;
+
+  foedus::assorted::ZipfianRandom zipfian_rng;
 
   uint64_t computation_n;
 };
@@ -512,6 +529,7 @@ ycsb_do_test(abstract_db *db, int argc, char **argv)
     cerr << "  workload_mix: "
          << format_list(g_txn_workload_mix, g_txn_workload_mix + ARRAY_NELEMS(g_txn_workload_mix))
          << endl;
+    cerr << "  distribution: " << (use_zipfian ? "zipfian" : "uniform") << endl;
   }
 
   ycsb_bench_runner r(db);

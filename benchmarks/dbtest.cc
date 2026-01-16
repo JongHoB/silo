@@ -104,6 +104,8 @@ main(int argc, char **argv)
       {"disable-snapshots"          , no_argument       , &disable_snapshots         , 1}   ,
       {"stats-server-sockfile"      , required_argument , 0                          , 'x'} ,
       {"no-reset-counters"          , no_argument       , &no_reset_counters         , 1}   ,
+      {"zipfian"                     , no_argument       , &use_zipfian               , 1}   ,
+      {"uniform"                     , no_argument       , &use_zipfian               , 0}   ,
       {0, 0, 0, 0}
     };
     int option_index = 0;
@@ -368,6 +370,7 @@ main(int argc, char **argv)
     }
     cerr << "  logfiles : " << logfiles                     << endl;
     cerr << "  assignments : " << assignments               << endl;
+    cerr << "  distribution   : " << (use_zipfian ?  "zipfian" : "uniform") << endl;
     cerr << "  disable-gc : " << disable_gc                 << endl;
     cerr << "  disable-snapshots : " << disable_snapshots   << endl;
     cerr << "  stats-server-sockfile: " << stats_server_sockfile << endl;
